@@ -2,10 +2,125 @@ package main
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/fiatjaf/khatru"
 	"github.com/nbd-wtf/go-nostr"
 	"golang.org/x/exp/slices"
 )
+
+func groupIdFromEvent(event *nostr.Event) string {
+	hTag := event.Tags.GetFirst([]string{"h", ""})
+	if hTag == nil {
+		return ""
+	}
+	return (*hTag)[1]
+}
+
+func getTiersFromEvent(event *nostr.Event) []string {
+	fTags := event.Tags.GetAll([]string{"f", ""})
+	eventTiers := make([]string, 0, len(fTags))
+	for _, fTag := range fTags {
+		eventTiers = append(eventTiers, fTag[1])
+	}
+	return eventTiers
+}
+
+/**
+ * Sends the event to the channel. If this is a members-only
+ * event, it strips the signature
+ */
+func sendEvent(ch chan *nostr.Event, event *nostr.Event) {
+	tiers := getTiersFromEvent(event)
+	if len(tiers) > 0 && !slices.Contains(tiers, "Free") {
+		event.Sig = ""
+	}
+
+	ch <- event
+}
+
+func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	pubkey := khatru.GetAuthed(ctx)
+
+	var memberships []Membership
+
+	if pubkey != "" {
+		memberships = loadMemberships(ctx, pubkey)
+	}
+
+	queryChannel, err := db.QueryEvents(ctx, filter)
+
+	if err != nil {
+		fmt.Println("error querying events", err)
+	}
+
+	retChannel := make(chan *nostr.Event, 500)
+
+	go func() {
+		defer close(retChannel)
+
+		for event := range queryChannel {
+			eventTiers := getTiersFromEvent(event)
+
+			// if there are no f tags, send the event
+			if len(eventTiers) == 0 {
+				sendEvent(retChannel, event)
+				continue
+			}
+
+			groupId := groupIdFromEvent(event)
+
+			// if there is no h tag, send the event
+			if groupId == "" {
+				sendEvent(retChannel, event)
+				continue
+			}
+
+			tiers := getTiersFromMemberships(memberships, groupId)
+
+			// if the groupId is the pubkey, send the event
+			if groupId == pubkey {
+				fmt.Println("groupid is pubkey", event.Tags)
+
+				// if the tier has a "full" tag
+				if event.Tags.GetFirst([]string{"full", ""}) != nil {
+					dTag := event.Tags.GetFirst([]string{"d", ""})
+					fmt.Println("event has full tag", "filter.Tags[d]", filter.Tags["d"], "dTag", dTag)
+
+					// only send the event if the d tag is in the filter
+					if dTag != nil && slices.Contains(filter.Tags["d"], (*dTag)[1]) {
+						fmt.Println("d tag is in filter, sending event", event.Tags, "filter.Tags[d]", filter.Tags["d"])
+						sendEvent(retChannel, event)
+						continue
+					} else {
+						fmt.Println("d tag is not in filter, not sending event", event.Tags, "filter.Tags[d]", filter.Tags["d"])
+						continue
+					}
+				} else {
+					// if it does not have a "full" tag, send the event
+					fmt.Println("event does not have full tag, sending it")
+					sendEvent(retChannel, event)
+					continue
+				}
+			}
+
+			// if any tier is among the f tags, send the event
+			for _, tier := range tiers {
+				fmt.Println("compare tier", tier, "with eventTiers", eventTiers)
+				if slices.Contains(eventTiers, tier) {
+					fmt.Println("tier is among eventTiers, sending event", event.Tags)
+					sendEvent(retChannel, event)
+					continue
+				}
+			}
+
+			// otherwise, don't send the event
+			fmt.Println("not sending event", event.Tags.GetFirst([]string{"title"}), "subscribedTiers", tiers, "eventTiers", eventTiers, "pubkey = ", pubkey, "groupId =", groupId)
+		}
+	}()
+
+	return retChannel, nil
+}
 
 func metadataQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
 	ch := make(chan *nostr.Event, 1)

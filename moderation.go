@@ -151,6 +151,23 @@ var moderationActionFactories = map[int]func(*nostr.Event) (Action, error){
 
 		return egs, nil
 	},
+	39002: func(evt *nostr.Event) (Action, error) {
+		tags := evt.Tags.GetAll([]string{"p", ""})
+		if len(tags) == 0 {
+			return nil, fmt.Errorf("missing 'p' tag")
+		}
+
+		targets := make([]string, len(tags))
+		for i, tag := range tags {
+			if nostr.IsValidPublicKeyHex(tag[1]) {
+				targets[i] = tag[1]
+			} else {
+				return nil, fmt.Errorf("invalid public key hex")
+			}
+		}
+
+		return &AddUser{Targets: targets}, nil
+	},
 }
 
 type DeleteEvent struct {

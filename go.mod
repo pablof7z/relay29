@@ -3,15 +3,18 @@ module github.com/fiatjaf/relay29
 go 1.21.0
 
 require (
-	github.com/fiatjaf/eventstore v0.2.14
-	github.com/fiatjaf/khatru v0.2.0
+	github.com/fiatjaf/eventstore v0.3.5
+	github.com/fiatjaf/khatru v0.2.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/nbd-wtf/go-nostr v0.26.4
+	github.com/nbd-wtf/go-nostr v0.27.3
 	github.com/rs/zerolog v1.31.0
 	github.com/theplant/htmlgo v1.0.3
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	golang.org/x/time v0.4.0
 )
+
+replace github.com/fiatjaf/eventstore => ../eventstore
+replace github.com/fiatjaf/khatru => ../khatru
 
 require (
 	github.com/PowerDNS/lmdb-go v1.9.2 // indirect
@@ -38,6 +41,7 @@ require (
 	github.com/puzpuzpuz/xsync/v2 v2.5.1 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
+	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
 	github.com/tidwall/gjson v1.17.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

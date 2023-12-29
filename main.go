@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -20,6 +22,7 @@ type Settings struct {
 	RelayDescription string `envconfig:"RELAY_DESCRIPTION"`
 	RelayContact     string `envconfig:"RELAY_CONTACT"`
 	RelayIcon        string `envconfig:"RELAY_ICON"`
+	RelayUrl         string `envconfig:"RELAY_URL"`
 	DatabasePath     string `envconfig:"DATABASE_PATH" default:"./db"`
 
 	RelayPubkey string `envconfig:"-"`
@@ -54,38 +57,60 @@ func main() {
 	relay.Info.Description = s.RelayDescription
 	relay.Info.Contact = s.RelayContact
 	relay.Info.Icon = s.RelayIcon
+	relay.ServiceURL = s.RelayUrl
 
 	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent)
 	relay.QueryEvents = append(relay.QueryEvents,
-		db.QueryEvents,
-		metadataQueryHandler,
-		adminsQueryHandler,
+		// db.QueryEvents,
+		// metadataQueryHandler,
+		// adminsQueryHandler,
+		contentQueryHandler,
 	)
 	relay.CountEvents = append(relay.CountEvents, db.CountEvents)
 	relay.DeleteEvent = append(relay.DeleteEvent, db.DeleteEvent)
 	relay.OverwriteDeletionOutcome = append(relay.OverwriteDeletionOutcome,
 		blockDeletesOfOldMessages,
 	)
-	relay.OverwriteFilter = append(relay.OverwriteFilter,
-		policies.RemoveAllButKinds(9, 11, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9021, 39000, 39001),
-	)
-	relay.RejectFilter = append(relay.RejectFilter,
-		requireKindAndSingleGroupID,
+	// relay.OverwriteFilter = append(
+	// 	relay.OverwriteFilter,
+	// )
+	// policies.RemoveAllButKinds(9, 11, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9021, 30023, 39000, 39001),
+	// applyFilterOverwrite,
+
+	relay.RejectFilter = append(
+		relay.RejectFilter,
+		// require
+		// requireKindAndSingleGroupID,
+		requireAuth,
 	)
 	relay.RejectEvent = append(relay.RejectEvent,
-		policies.PreventLargeTags(64),
-		policies.PreventTooManyIndexableTags(6, nil, nil),
-		policies.RestrictToSpecifiedKinds(9, 11, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9021),
-		policies.PreventTimestampsInThePast(60),
-		policies.PreventTimestampsInTheFuture(30),
-		requireHTag,
-		restrictWritesBasedOnGroupRules,
+		policies.PreventTooManyIndexableTags(10, []int{39002}, nil),
+		func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+			if event.Kind != 0 {
+				policies.PreventTimestampsInThePast(60)
+				policies.PreventTimestampsInTheFuture(30)
+			}
+			return false, ""
+		},
+		// requireHTag,
+
+		enforceGroupEvents,
+
+		// restrictGroupWritesToMembers,
+		// restrictWritesBasedOnGroupRules,
 		restrictInvalidModerationActions,
 		rateLimit,
 	)
 	relay.OnEventSaved = append(relay.OnEventSaved,
 		applyModerationAction,
 		reactToJoinRequest,
+	)
+	relay.OnConnect = append(
+		relay.OnConnect,
+		func(ctx context.Context) {
+			fmt.Println("connected, requesting auth")
+			khatru.RequestAuth(ctx)
+		},
 	)
 
 	// http routes

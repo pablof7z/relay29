@@ -1,14 +1,9 @@
 package main
 
 import (
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/fiatjaf/eventstore"
-	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/theplant/htmlgo"
 )
@@ -23,46 +18,19 @@ func handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		pubkey = value.(string)
 	}
 
-	id := make([]byte, 8)
-	binary.LittleEndian.PutUint64(id, uint64(time.Now().Unix()))
-	groupId := hex.EncodeToString(id[0:4])
+	// id := make([]byte, 8)
+	// binary.LittleEndian.PutUint64(id, uint64(time.Now().Unix()))
+	// groupId := hex.EncodeToString(id[0:4])
 
-	log.Info().Str("id", groupId).Str("owner", pubkey).Msg("making group")
+	log.Info().Str("id", pubkey).Str("owner", pubkey).Msg("making group")
 
-	vrelay := eventstore.RelayWrapper{Store: db}
-	res, _ := vrelay.QuerySync(r.Context(), nostr.Filter{Tags: nostr.TagMap{"#h": []string{groupId}}, Limit: 1})
-	if len(res) > 0 {
-		http.Error(w, "group already exists", 403)
-		return
+	res := createGroup(pubkey, pubkey, r.Context())
+
+	if res == "" {
+	} else {
+		http.Error(w, res, 403)
 	}
 
-	ownerPermissions := &nostr.Event{
-		CreatedAt: nostr.Now(),
-		Kind:      9003,
-		Tags: nostr.Tags{
-			nostr.Tag{"h", groupId},
-			nostr.Tag{"p", pubkey},
-			nostr.Tag{"permission", PermAddUser},
-			nostr.Tag{"permission", PermRemoveUser},
-			nostr.Tag{"permission", PermEditMetadata},
-			nostr.Tag{"permission", PermAddPermission},
-			nostr.Tag{"permission", PermRemovePermission},
-			nostr.Tag{"permission", PermDeleteEvent},
-			nostr.Tag{"permission", PermEditGroupStatus},
-		},
-	}
-	if err := ownerPermissions.Sign(s.RelayPrivkey); err != nil {
-		log.Error().Err(err).Msg("error signing group creation event")
-		http.Error(w, "error signing group creation event: "+err.Error(), 500)
-		return
-	}
-
-	if err := relay.AddEvent(r.Context(), ownerPermissions); err != nil {
-		log.Error().Err(err).Stringer("event", ownerPermissions).Msg("failed to save group creation event")
-		http.Error(w, "failed to save group creation event", 501)
-		return
-	}
-
-	naddr, _ := nip19.EncodeEntity(s.RelayPubkey, 39000, groupId, []string{"wss://" + s.Domain})
+	naddr, _ := nip19.EncodeEntity(s.RelayPubkey, 39000, pubkey, []string{"wss://" + s.Domain})
 	fmt.Fprintf(w, "group created!\n\n%s", naddr)
 }
