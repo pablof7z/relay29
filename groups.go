@@ -173,7 +173,11 @@ func loadMemberships(ctx context.Context, userPubkey string) []Membership {
 
 	for event := range ch {
 		var tierName *string
-		var groupId string
+
+		groupId := getGroupIdFromEvent(event, "d")
+		if groupId == "" {
+			continue
+		}
 		for _, tag := range event.Tags {
 			// fmt.Println("tag", tag, "userPubkey", userPubkey)
 			if tag[0] == "p" && tag[1] == userPubkey {
@@ -183,11 +187,6 @@ func loadMemberships(ctx context.Context, userPubkey string) []Membership {
 					tier := "Free"
 					tierName = &tier
 				}
-				gtag := event.Tags.GetFirst([]string{"d", ""})
-				if gtag == nil {
-					continue
-				}
-				groupId = (*gtag)[1]
 
 				// add to memberships, if there is already a membership with this group, add the tier if it's new
 				added := false
@@ -195,7 +194,6 @@ func loadMemberships(ctx context.Context, userPubkey string) []Membership {
 					if membership.Pubkey == groupId {
 						if !slices.Contains(membership.Tier, *tierName) {
 							memberships[i].Tier = append(membership.Tier, *tierName)
-							// fmt.Println("added tier", *tierName, "to membership", groupId)
 						}
 
 						added = true
@@ -205,15 +203,38 @@ func loadMemberships(ctx context.Context, userPubkey string) []Membership {
 				// if no membership was found, add a new one
 				if !added {
 					memberships = append(memberships, Membership{groupId, []string{*tierName}})
-					// fmt.Println("added membership with tier", groupId, *tierName)
 				}
-
-				break
 			}
 		}
 	}
 
 	return memberships
+}
+
+/**
+ * Gets the tiers a pubkey has on a group.
+ */
+func getTiersForPubkeyOnGroup(ctx context.Context, userPubkey string, groupId string) []string {
+	ch, _ := db.QueryEvents(ctx, nostr.Filter{
+		Kinds: []int{39002},
+		Tags:  nostr.TagMap{"p": []string{userPubkey}},
+	})
+
+	tiers := make([]string, 0, len(ch))
+
+	for event := range ch {
+		for _, tag := range event.Tags {
+			if tag[0] == "p" && tag[1] == userPubkey {
+				if len(tag) >= 3 {
+					tiers = append(tiers, tag[2])
+				} else {
+					tiers = append(tiers, "Free")
+				}
+			}
+		}
+	}
+
+	return tiers
 }
 
 func getTiersFromMemberships(memberships []Membership, groupId string) []string {
@@ -233,8 +254,12 @@ func getTiersFromMemberships(memberships []Membership, groupId string) []string 
 	return tiers
 }
 
-func getGroupIdFromEvent(event *nostr.Event) string {
-	gtag := event.Tags.GetFirst([]string{"h", ""})
+func getGroupIdFromEvent(event *nostr.Event, tagName string) string {
+	if tagName == "" {
+		tagName = "h"
+	}
+
+	gtag := event.Tags.GetFirst([]string{tagName, ""})
 	if gtag == nil {
 		return ""
 	}

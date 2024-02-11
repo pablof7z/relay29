@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/nbd-wtf/go-nostr"
@@ -18,14 +19,72 @@ func requireHTag(ctx context.Context, event *nostr.Event) (reject bool, msg stri
 	return false, ""
 }
 
-func nonRootEventsMustTagExistingEvents(ctx context.Context, event *nostr.Event, groupId string, eTags nostr.Tags) (reject bool, msg string) {
-	// this is a reply event, so find an e-tagged event that has the same h tag
-	// and ensure that the event.pubkey matches the h tag of the e-tagged event
+/**
+ * Events must tag an event that
+ */
+func onlyMembersCanWrite(ctx context.Context, event *nostr.Event, groupId string, eTags nostr.Tags) (reject bool, msg string) {
+	// get the tiers this user has on this group
+	activeTiers := getTiersForPubkeyOnGroup(ctx, event.PubKey, groupId)
+
+	// get the tagged events
+	taggedEvents, _ := getTaggedEvents(ctx, event, groupId, eTags)
+
+	for taggedEvent := range taggedEvents {
+		// get the tier of the tagged events``
+		eventTiers := getTiersFromEvent(taggedEvent)
+
+		// if it doesn't have a tier, allow
+		if len(eventTiers) == 0 {
+			continue
+		}
+
+		eventCanBeTagged := false
+
+		for _, tier := range eventTiers {
+			if tier == "Free" || slices.Contains(activeTiers, tier) {
+				eventCanBeTagged = true
+				break
+			}
+		}
+
+		if !eventCanBeTagged {
+			return true, "insufficient permissions"
+		}
+	}
+
+	return false, ""
+}
+
+func getTaggedEvents(ctx context.Context, event *nostr.Event, groupId string, eTags nostr.Tags) (chan *nostr.Event, error) {
+	// get tagged events
 	ids := make([]string, 0, len(eTags))
 	for _, tag := range eTags {
 		ids = append(ids, tag[1])
 	}
 
+	return db.QueryEvents(ctx, nostr.Filter{
+		IDs:  ids,
+		Tags: nostr.TagMap{"h": []string{groupId}},
+	})
+}
+
+/**
+ * Events that tag other events within a group must tag at least one event that exists
+ * in the group
+ */
+func nonRootEventsMustTagExistingEvents(ctx context.Context, event *nostr.Event, groupId string, eTags nostr.Tags) (reject bool, msg string) {
+	// get tagged events
+	ids := make([]string, 0, len(eTags))
+	for _, tag := range eTags {
+		ids = append(ids, tag[1])
+	}
+
+	// if there are no tagged events, allow
+	if len(ids) == 0 {
+		return false, ""
+	}
+
+	// at least one must be in the database
 	existingEvents, _ := db.CountEvents(ctx, nostr.Filter{
 		IDs:  ids,
 		Tags: nostr.TagMap{"h": []string{groupId}},
@@ -40,7 +99,7 @@ func nonRootEventsMustTagExistingEvents(ctx context.Context, event *nostr.Event,
 }
 
 func enforceGroupEvents(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
-	groupId := getGroupIdFromEvent(event)
+	groupId := getGroupIdFromEvent(event, "")
 	eTags := event.Tags.GetAll([]string{"e", ""})
 
 	// if we don't have an h tag, allow
@@ -48,18 +107,30 @@ func enforceGroupEvents(ctx context.Context, event *nostr.Event) (reject bool, m
 		return false, ""
 	}
 
-	if len(eTags) == 0 {
-		return onlyCreatorCanWriteRootEvents(event, groupId)
-	} else {
-		return nonRootEventsMustTagExistingEvents(ctx, event, groupId, eTags)
+	var checks []func(context.Context, *nostr.Event, string, nostr.Tags) (bool, string)
+
+	if groupId != event.PubKey {
+		checks = append(checks,
+			nonRootEventsMustTagExistingEvents,
+			onlyMembersCanWrite,
+		)
 	}
+
+	for _, check := range checks {
+		res, msg := check(ctx, event, groupId, eTags)
+		if res {
+			return res, msg
+		}
+	}
+
+	return false, ""
 }
 
 /**
  * Ensures that the h tag matches the event.pubkey if there are no e tags, and ensures
  * that the e-tagged event exists and its h tag matches the h tag of the event.
  */
-func onlyCreatorCanWriteRootEvents(event *nostr.Event, groupId string) (reject bool, msg string) {
+func onlyCreatorCanWriteRootEvents(ctx context.Context, event *nostr.Event, groupId string, eTags nostr.Tags) (reject bool, msg string) {
 	if groupId != event.PubKey {
 		return true, "only the creator can write root events"
 	}
@@ -136,13 +207,28 @@ func restrictInvalidModerationActions(ctx context.Context, event *nostr.Event) (
 	groupId := (*gtag)[1]
 	group := loadGroup(ctx, groupId)
 
-	role, ok := group.Members[event.PubKey]
-	if !ok || role == emptyRole {
-		return true, "unknown admin"
+	fmt.Println("groupId: ", groupId, group)
+
+	// if h tag is the same as the event.pubkey, allow
+	// if groupId == event.PubKey {
+	// 	fmt.Println("groupId == event.PubKey: allow moderation action")
+
+	// 	return false, ""
+	// }
+
+	fmt.Println("groupId != event.PubKey: ", groupId, event.PubKey)
+	if groupId != event.PubKey {
+		fmt.Println("they are different")
+		role, ok := group.Members[event.PubKey]
+		if !ok || role == emptyRole {
+			return true, "unknown admin2"
+		}
+
+		if _, ok := role.Permissions[action.PermissionName()]; !ok {
+			return true, "insufficient permissions"
+		}
 	}
-	if _, ok := role.Permissions[action.PermissionName()]; !ok {
-		return true, "insufficient permissions"
-	}
+
 	return false, ""
 }
 

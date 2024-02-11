@@ -62,7 +62,7 @@ func main() {
 	relay.StoreEvent = append(relay.StoreEvent, db.SaveEvent)
 	relay.QueryEvents = append(relay.QueryEvents,
 		// db.QueryEvents,
-		// metadataQueryHandler,
+		metadataQueryHandler,
 		// adminsQueryHandler,
 		contentQueryHandler,
 	)
@@ -79,23 +79,26 @@ func main() {
 
 	relay.RejectFilter = append(
 		relay.RejectFilter,
+		// func(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
+		// 	fmt.Println("FILTER", filter)
+		// 	return false, ""
+		// },
 		// require
 		// requireKindAndSingleGroupID,
 		requireAuth,
 	)
 	relay.RejectEvent = append(relay.RejectEvent,
 		policies.PreventTooManyIndexableTags(10, []int{39002}, nil),
-		func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
-			if event.Kind != 0 {
-				policies.PreventTimestampsInThePast(60)
-				policies.PreventTimestampsInTheFuture(30)
-			}
-			return false, ""
-		},
+		// func(ctx context.Context, event *nostr.Event) (reject bool, msg string) {
+		// 	if event.Kind != 0 {
+		// 		policies.PreventTimestampsInThePast(60)
+		// 		policies.PreventTimestampsInTheFuture(30)
+		// 	}
+		// 	return false, ""
+		// },
 		// requireHTag,
 
 		enforceGroupEvents,
-
 		// restrictGroupWritesToMembers,
 		// restrictWritesBasedOnGroupRules,
 		restrictInvalidModerationActions,
@@ -114,8 +117,8 @@ func main() {
 	)
 
 	// http routes
-	relay.Router().HandleFunc("/create", handleCreateGroup)
-	relay.Router().HandleFunc("/", handleHomepage)
+	// relay.Router().HandleFunc("/create", handleCreateGroup)
+	// relay.Router().HandleFunc("/", handleHomepage)
 
 	log.Info().Msg("running on http://0.0.0.0:" + s.Port)
 	if err := http.ListenAndServe(":"+s.Port, relay); err != nil {

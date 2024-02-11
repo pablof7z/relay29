@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/fiatjaf/khatru"
 	"github.com/nbd-wtf/go-nostr"
@@ -11,8 +12,30 @@ import (
 func requireAuth(ctx context.Context, filter nostr.Filter) (reject bool, msg string) {
 	pubkey := khatru.GetAuthed(ctx)
 
-	if pubkey == "" {
-		return true, "auth-required: something"
+	if pubkey != "" {
+		return false, ""
+	}
+
+	// run the query, if it only returns events that are not public, request auth
+	queryChannel, _ := db.QueryEvents(ctx, filter)
+
+	nonPublicEvents := 0
+
+	for event := range queryChannel {
+		eventTiers := getTiersFromEvent(event)
+
+		if len(eventTiers) == 0 || slices.Contains(eventTiers, "Free") {
+			// if we have a public event, we don't need to request auth
+			fmt.Println("public event found")
+			return false, ""
+		} else {
+			nonPublicEvents++
+			fmt.Println("non-public event found")
+		}
+	}
+
+	if nonPublicEvents > 0 {
+		return true, "auth-required: authenticate please"
 	}
 
 	return false, ""
