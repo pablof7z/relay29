@@ -61,12 +61,16 @@ github.com/fiatjaf/eventstore v0.3.5 h1:otlG2L9G7wbMXPo5dqSg8zVNN9djJK2JpdQ4/j2L
 github.com/fiatjaf/eventstore v0.3.5/go.mod h1:iqGHNXOMz+ztLHXxG13WBXgz/2bG0q/p1L3olof4dYo=
 github.com/fiatjaf/eventstore v0.3.8 h1:q4jcN95O2CVA+wP47V25BcVSNvjfOiPPIWgPmQ6hTRk=
 github.com/fiatjaf/eventstore v0.3.8/go.mod h1:Qsm5loQICkazpsj8tQmcOK95AVkQQNF09Xx/NS/Biow=
+github.com/fiatjaf/eventstore v0.3.12 h1:JfhRc7I61cEqtIL8YX0OIUhHkmH5Sr6lC4p9Xz4J2Bc=
+github.com/fiatjaf/eventstore v0.3.12/go.mod h1:OH3Ntce3rZFIEGJ/K6raC1JUwSXksanKBF77naZvfdg=
 github.com/fiatjaf/khatru v0.2.0 h1:aSBh2yl2fS/3+2aA/kmAXtmRJ2f5iLHmstsWNDERlxk=
 github.com/fiatjaf/khatru v0.2.0/go.mod h1:reXIM06zBXmFWwM1qp9mW6jCWjxTkEbtObVEPm0jOXE=
 github.com/fiatjaf/khatru v0.2.2 h1:5slU3nNJSkRFe4MZFdW7feM3KHtVebuRBH6seOedJSk=
 github.com/fiatjaf/khatru v0.2.2/go.mod h1:DOmxC1Sc6ojuMtzBJarJP8UBioycIaQDyX7qh2CcxKI=
 github.com/fiatjaf/khatru v0.3.1 h1:wuiu6CD/FfKDAao1kxWIEnD9JFSkh5p1IkYA7xNkGHE=
 github.com/fiatjaf/khatru v0.3.1/go.mod h1:GTplSjXtShIiL/o8q2KiyoAVidcHKSCHVqylj1pL8P0=
+github.com/fiatjaf/khatru v0.3.2 h1:vmkwoGGOJIeaTuAswgwzhEbRUrf7W/OxmolI+CncVFw=
+github.com/fiatjaf/khatru v0.3.2/go.mod h1:D1Zv+LzI490Dtlu/4NkZ7ZyY1Am6EXOK/FYkjx6szN4=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/gobwas/httphead v0.1.0 h1:exrUm0f4YX0L7EBwZHuCF4GDp8aJfVeBrlLQrs6NqWU=
@@ -118,6 +122,8 @@ github.com/nbd-wtf/go-nostr v0.27.3 h1:u9fdP5h+Ap3LcDFD2j6F2buU/xOM9ddMY0LCDcC6Z
 github.com/nbd-wtf/go-nostr v0.27.3/go.mod h1:e5WOFsKEpslDOxIgK00NqemH7KuAvKIW6sBXeJYCfUs=
 github.com/nbd-wtf/go-nostr v0.28.1 h1:XQi/lBsigBXHRm7IDBJE7SR9citCh9srgf8sA5iVW3A=
 github.com/nbd-wtf/go-nostr v0.28.1/go.mod h1:OQ8sNLFJnsj17BdqZiLSmjJBIFTfDqckEYC3utS4qoY=
+github.com/nbd-wtf/go-nostr v0.28.5 h1:5vBAFKGVJ6Rhq2Jrtj+v+j8bUVLdsao5SFdBIQ7PJR4=
+github.com/nbd-wtf/go-nostr v0.28.5/go.mod h1:aFcp8NO3erHg+glzBfh4wpaMrV1/ahcUPAgITdptxwA=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

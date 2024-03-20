@@ -110,7 +110,7 @@ func createGroup(groupId string, ownerPubkey string, ctx context.Context) string
 }
 
 // loadGroup loads all the group metadata from all the past action messages
-func loadGroup(ctx context.Context, id string) *Group {
+func loadGroup(ctx context.Context, id string, createGroup bool) *Group {
 	if group, ok := groups[id]; ok {
 		return group
 	}
@@ -133,6 +133,17 @@ func loadGroup(ctx context.Context, id string) *Group {
 		events = append(events, event)
 	}
 	if len(events) == 0 {
+		if !createGroup {
+			// Check if we have a kind:37001 event for this pubkey
+			// If we don't and createGroup is false return nil
+			existingEvents, _ := db.CountEvents(ctx, nostr.Filter{
+				Kinds: []int{37001}, Authors: []string{id},
+			})
+			if existingEvents == 0 {
+				return nil
+			}
+		}
+
 		// create group here
 		return group
 	}

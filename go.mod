@@ -5,10 +5,10 @@ go 1.21.4
 toolchain go1.21.7
 
 require (
-	github.com/fiatjaf/eventstore v0.3.8
-	github.com/fiatjaf/khatru v0.3.1
+	github.com/fiatjaf/eventstore v0.3.12
+	github.com/fiatjaf/khatru v0.3.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/nbd-wtf/go-nostr v0.28.1
+	github.com/nbd-wtf/go-nostr v0.28.5
 	github.com/rs/zerolog v1.31.0
 	github.com/theplant/htmlgo v1.0.3
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d

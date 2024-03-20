@@ -129,7 +129,12 @@ func metadataQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr
 	if slices.Contains(filter.Kinds, 39000) {
 		for _, groupId := range filter.Tags["d"] {
 			fmt.Println("loading group", groupId)
-			group := loadGroup(ctx, groupId)
+			group := loadGroup(ctx, groupId, false)
+
+			if group == nil {
+				continue
+			}
+
 			evt := &nostr.Event{
 				Kind:      39000,
 				CreatedAt: nostr.Now(),
@@ -170,7 +175,12 @@ func adminsQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.E
 	ch := make(chan *nostr.Event, 1)
 	if slices.Contains(filter.Kinds, 39001) {
 		for _, groupId := range filter.Tags["d"] {
-			group := loadGroup(ctx, groupId)
+			group := loadGroup(ctx, groupId, false)
+
+			if group == nil {
+				continue
+			}
+
 			evt := &nostr.Event{
 				Kind:      39001,
 				CreatedAt: nostr.Now(),
@@ -193,5 +203,50 @@ func adminsQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.E
 		}
 	}
 	close(ch)
+	return ch, nil
+}
+
+func membersQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	ch := make(chan *nostr.Event, 1)
+
+	if slices.Contains(filter.Kinds, 39002) {
+		go func() {
+			defer close(ch)
+			for _, groupId := range filter.Tags["d"] {
+				group := loadGroup(ctx, groupId, false)
+
+				if group == nil {
+					continue
+				}
+
+				evt := &nostr.Event{
+					Kind:      39002,
+					CreatedAt: nostr.Now(),
+					Content:   "list of members of " + groupId,
+					Tags: nostr.Tags{
+						nostr.Tag{"d", group.ID},
+					},
+				}
+				for pubkey, role := range group.Members {
+					if pubkey == s.RelayPubkey {
+						continue
+					}
+
+					tag := nostr.Tag{"p", pubkey}
+					if role != emptyRole && role != masterRole {
+						for permName := range role.Permissions {
+							tag = append(tag, permName)
+						}
+					}
+					evt.Tags = append(evt.Tags, tag)
+				}
+				evt.Sign(s.RelayPrivkey)
+				ch <- evt
+			}
+		}()
+	} else {
+		close(ch)
+	}
+
 	return ch, nil
 }

@@ -147,7 +147,7 @@ func restrictGroupWritesToMembers(ctx context.Context, event *nostr.Event) (reje
 	}
 
 	groupId := (*gtag)[1]
-	group := loadGroup(ctx, groupId)
+	group := loadGroup(ctx, groupId, true)
 
 	// if there is no group, allow
 	if group == nil {
@@ -205,20 +205,18 @@ func restrictInvalidModerationActions(ctx context.Context, event *nostr.Event) (
 
 	gtag := event.Tags.GetFirst([]string{"h", ""})
 	groupId := (*gtag)[1]
-	group := loadGroup(ctx, groupId)
+	group := loadGroup(ctx, groupId, true)
 
 	fmt.Println("groupId: ", groupId, group)
 
 	// if h tag is the same as the event.pubkey, allow
-	// if groupId == event.PubKey {
-	// 	fmt.Println("groupId == event.PubKey: allow moderation action")
-
-	// 	return false, ""
-	// }
+	if groupId == event.PubKey || event.PubKey == s.RelayPubkey {
+		fmt.Println("groupId == event.PubKey: allow moderation action")
+		return false, ""
+	}
 
 	fmt.Println("groupId != event.PubKey: ", groupId, event.PubKey)
 	if groupId != event.PubKey {
-		fmt.Println("they are different")
 		role, ok := group.Members[event.PubKey]
 		if !ok || role == emptyRole {
 			return true, "unknown admin2"
@@ -239,7 +237,7 @@ func rateLimit(ctx context.Context, event *nostr.Event) (reject bool, msg string
 	}
 
 	groupId := (*gtag)[1]
-	group := loadGroup(ctx, groupId)
+	group := loadGroup(ctx, groupId, true)
 
 	if rsv := group.bucket.Reserve(); rsv.Delay() != 0 {
 		rsv.Cancel()
@@ -264,7 +262,7 @@ func applyModerationAction(ctx context.Context, event *nostr.Event) {
 	}
 	gtag := event.Tags.GetFirst([]string{"h", ""})
 	groupId := (*gtag)[1]
-	group := loadGroup(ctx, groupId)
+	group := loadGroup(ctx, groupId, true)
 	action.Apply(group)
 }
 
@@ -274,7 +272,7 @@ func reactToJoinRequest(ctx context.Context, event *nostr.Event) {
 	}
 	gtag := event.Tags.GetFirst([]string{"h", ""})
 	groupId := (*gtag)[1]
-	group := loadGroup(ctx, groupId)
+	group := loadGroup(ctx, groupId, true)
 
 	if !group.Closed {
 		// immediatelly add the requester
