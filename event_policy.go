@@ -26,11 +26,13 @@ func onlyMembersCanWrite(ctx context.Context, event *nostr.Event, groupId string
 	// get the tiers this user has on this group
 	activeTiers := getTiersForPubkeyOnGroup(ctx, event.PubKey, groupId)
 
+	fmt.Println("activeTiers: ", activeTiers)
+
 	// get the tagged events
 	taggedEvents, _ := getTaggedEvents(ctx, event, groupId, eTags)
 
 	for taggedEvent := range taggedEvents {
-		// get the tier of the tagged events``
+		// get the tier of the tagged events
 		eventTiers := getTiersFromEvent(taggedEvent)
 
 		// if it doesn't have a tier, allow

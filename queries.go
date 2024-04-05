@@ -30,10 +30,19 @@ func getTiersFromEvent(event *nostr.Event) []string {
  * Sends the event to the channel. If this is a members-only
  * event, it strips the signature
  */
-func sendEvent(ch chan *nostr.Event, event *nostr.Event) {
+func sendEvent(ch chan *nostr.Event, event *nostr.Event, requesterPubkey string) {
 	tiers := getTiersFromEvent(event)
-	if len(tiers) > 0 && !slices.Contains(tiers, "Free") {
-		event.Sig = ""
+	if len(tiers) > 0 {
+		if !slices.Contains(tiers, "Free") {
+			if requesterPubkey == event.PubKey {
+				fmt.Println("event is members-only, but requester is the author, not stripping signature")
+			} else {
+				fmt.Println("stripping signature from event")
+				event.Sig = ""
+			}
+		} else {
+			fmt.Println("event is free, not stripping signature", tiers)
+		}
 	}
 
 	ch <- event
@@ -66,7 +75,7 @@ func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.
 
 			// if there are no f tags, send the event
 			if len(eventTiers) == 0 {
-				sendEvent(retChannel, event)
+				sendEvent(retChannel, event, pubkey)
 				continue
 			}
 
@@ -74,8 +83,7 @@ func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.
 
 			// if there is no h tag, send the event
 			if groupId == "" {
-				sendEvent(retChannel, event)
-				continue
+				sendEvent(retChannel, event, pubkey)
 			}
 
 			tiers := getTiersFromMemberships(memberships, groupId)
@@ -92,7 +100,7 @@ func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.
 					// only send the event if the d tag is in the filter
 					if dTag != nil && slices.Contains(filter.Tags["d"], (*dTag)[1]) {
 						// fmt.Println("d tag is in filter, sending event", event.Tags, "filter.Tags[d]", filter.Tags["d"])
-						sendEvent(retChannel, event)
+						sendEvent(retChannel, event, pubkey)
 						continue
 					} else {
 						// fmt.Println("d tag is not in filter, not sending event", event.Tags, "filter.Tags[d]", filter.Tags["d"])
@@ -101,7 +109,7 @@ func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.
 				} else {
 					// if it does not have a "full" tag, send the event
 					// fmt.Println("event does not have full tag, sending it")
-					sendEvent(retChannel, event)
+					sendEvent(retChannel, event, pubkey)
 					continue
 				}
 			}
@@ -110,8 +118,8 @@ func contentQueryHandler(ctx context.Context, filter nostr.Filter) (chan *nostr.
 			for _, tier := range tiers {
 				// fmt.Println("compare tier", tier, "with eventTiers", eventTiers)
 				if slices.Contains(eventTiers, tier) {
-					// fmt.Println("tier is among eventTiers, sending event", event.Tags)
-					sendEvent(retChannel, event)
+					fmt.Println("tier is among eventTiers, sending event", tier, event.Tags)
+					sendEvent(retChannel, event, pubkey)
 					continue
 				}
 			}
